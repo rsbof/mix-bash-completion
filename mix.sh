@@ -22,12 +22,16 @@ full_time() {
 _mix() {
     local cur
     _get_comp_words_by_ref -n : cur
-    if ! exists_mix || ! exists_mix_project; then
+    if ! exists_mix; then
         COMPREPLY=($(compgen -o default "$cur"))
         return 0
     fi
     # TODO create options cache
     if [ "$cur" == '--' ]; then
+        return 0
+    fi
+    if ! exists_mix_project; then
+        COMPREPLY=($(compgen -W "$(mix help --names)" "$cur"))
         return 0
     fi
     if is_initialized; then
