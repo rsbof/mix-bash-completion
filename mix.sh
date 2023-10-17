@@ -1,56 +1,72 @@
 #!/bin/bash
 
-declare -A mix_cache
+declare -A _mix_cache
 
-exists_mix() {
-    [ $(command -v mix) ]
+__mix_list_task_names(){
+    mix help --names |
+        sort --unique
 }
 
-exists_mix_project() {
+__mix_list_task_options(){
+    mix help $1 |
+        grep -oP -- '(?<=`)--.*?(?=`)' |
+        sort --unique
+}
+
+__mix_is_inside_mix_project(){
     [ -f './mix.exs' ]
 }
 
-is_initialized() {
-    [ ${#mix_cache[@]} -gt 0 ]
+__mix_get_current_project_last_modified(){
+    if __mix_is_inside_mix_project; then
+        ls -l --time-style=+"$1" './mix.exs' | awk '{print $6}'
+    fi
 }
 
-full_time() {
-    # HH:MM:SS
-    ls -l --time-style=+%T $1 | awk '{print $6}'
+__mix_parse_current_task_name(){
+    local words
+    _get_comp_words_by_ref -n : words
+    echo "${words[1]}"
 }
 
-is_long_option() {
-    [ ${1:0:2} == '--' ]
+__mix_handle_completion_task(){
+    local cmd_key='cmd'
+    local reload_key='last_modified'
+    local reload_value="$(__mix_get_current_project_last_modified '%T')"
+    if ! __mix_is_inside_mix_project; then
+        _mix_cache["$cmd_key"]="$(__mix_list_task_names)"
+    else
+        if [ -z "${_mix_cache[$cmd_key]}" ] ||
+            [ "${_mix_cache[$reload_key]}" != "$reload_value" ]; then
+            _mix_cache["$cmd_key"]="$(__mix_list_task_names)"
+            _mix_cache["$reload_key"]="$reload_value"
+        fi
+    fi
+    COMPREPLY=($(compgen -W "${_mix_cache[$cmd_key]}" "$cur"))
+}
+
+__mix_handle_completion_task_options(){
+    local words
+    _get_comp_words_by_ref -n : words
+    local cur_task="$(__mix_parse_current_task_name)"
+    if [ -z "${_mix_cache[$cur_task]}" ]; then
+        _mix_cache[$cur_task]=$(__mix_list_task_options $cur_task)
+    fi
+    COMPREPLY=($(compgen -W "${_mix_cache[$cur_task]}" -- "$1"))
 }
 
 _mix() {
-    local cur prev
-    _get_comp_words_by_ref -n : cur prev
-    if ! exists_mix; then
+    local cur
+    _get_comp_words_by_ref -n : cur
+    if ! [ $(command -v mix) ]; then
         COMPREPLY=($(compgen -o default "$cur"))
         return 0
     fi
-    if is_long_option $cur; then
-        opts=$(mix help $prev 2>/dev/null |
-            grep -oP -- '(?<=`)--.*?(?=`)' |
-            sort --unique)
-        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
-        return 0
+    if [ "${cur:0:2}" != '--' ]; then
+        __mix_handle_completion_task $cur
+    else
+        __mix_handle_completion_task_options $cur
     fi
-    if ! exists_mix_project; then
-        COMPREPLY=($(compgen -W "$(mix help --names)" "$cur"))
-        return 0
-    fi
-    if is_initialized; then
-        if [ "${mix_cache['lastModified']}" == "$(full_time ./mix.exs)" ]; then
-            COMPREPLY=($(compgen -W "${mix_cache['cmd']}" "$cur"))
-            return 0
-        fi
-    fi
-    mix_cache['lastModified']=$(full_time ./mix.exs)
-    mix_cache['cmd']=$(mix help --names)
-    COMPREPLY=($(compgen -W "${mix_cache['cmd']}" "$cur"))
-    return 0
 }
 
 comp_test() {
@@ -62,5 +78,5 @@ comp_test() {
     echo "cword: $cword"
 }
 
-# complete -F comp_test mix
 complete -F _mix mix
+# complete -F comp_test mix
