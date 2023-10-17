@@ -19,15 +19,22 @@ full_time() {
     ls -l --time-style=+%T $1 | awk '{print $6}'
 }
 
+is_long_option() {
+    [ ${1:0:2} == '--' ]
+}
+
 _mix() {
-    local cur
-    _get_comp_words_by_ref -n : cur
+    local cur prev
+    _get_comp_words_by_ref -n : cur prev
     if ! exists_mix; then
         COMPREPLY=($(compgen -o default "$cur"))
         return 0
     fi
-    # TODO create options cache
-    if [ "$cur" == '--' ]; then
+    if is_long_option $cur; then
+        opts=$(mix help $prev 2>/dev/null |
+            grep -oP -- '(?<=`)--.*?(?=`)' |
+            sort --unique)
+        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
         return 0
     fi
     if ! exists_mix_project; then
@@ -46,4 +53,14 @@ _mix() {
     return 0
 }
 
+comp_test() {
+    _get_comp_words_by_ref -n : cur prev words cword
+    echo ''
+    echo "cur: $cur"
+    echo "prev: $prev"
+    echo "words: ${words[@]}"
+    echo "cword: $cword"
+}
+
+# complete -F comp_test mix
 complete -F _mix mix
