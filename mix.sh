@@ -44,8 +44,6 @@ __mix_handle_completion_task(){
 }
 
 __mix_handle_completion_task_options(){
-    local words
-    _get_comp_words_by_ref -n : words
     local cur_task="$(__mix_parse_current_task_name)"
     if [ -z "${_mix_cache[$cur_task]}" ]; then
         _mix_cache[$cur_task]=$(__mix_list_task_options $cur_task)
