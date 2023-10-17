@@ -1,5 +1,3 @@
-#!/bin/bash
-
 declare -A _mix_cache
 
 __mix_list_task_names(){
