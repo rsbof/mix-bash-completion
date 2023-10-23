@@ -1,33 +1,33 @@
 declare -A _mix_cache
 
-__mix_list_task_names(){
+__mix_list_task_names() {
     mix help --names |
         sort --unique
 }
 
-__mix_list_task_options(){
+__mix_list_task_options() {
     mix help $1 |
         grep -oP -- '(?<=`)--.*?(?=`)' |
         sort --unique
 }
 
-__mix_is_inside_mix_project(){
+__mix_is_inside_mix_project() {
     [ -f './mix.exs' ]
 }
 
-__mix_get_current_project_last_modified(){
+__mix_get_current_project_last_modified() {
     if __mix_is_inside_mix_project; then
         ls -l --time-style=+"$1" './mix.exs' | awk '{print $6}'
     fi
 }
 
-__mix_parse_current_task_name(){
+__mix_parse_current_task_name() {
     local words
     _get_comp_words_by_ref -n : words
     echo "${words[1]}"
 }
 
-__mix_handle_completion_task(){
+__mix_handle_completion_task() {
     local cmd_key='cmd'
     local reload_key='last_modified'
     local reload_value="$(__mix_get_current_project_last_modified '%T')"
@@ -43,7 +43,7 @@ __mix_handle_completion_task(){
     COMPREPLY=($(compgen -W "${_mix_cache[$cmd_key]}" "$cur"))
 }
 
-__mix_handle_completion_task_options(){
+__mix_handle_completion_task_options() {
     local cur_task="$(__mix_parse_current_task_name)"
     if [ -z "${_mix_cache[$cur_task]}" ]; then
         _mix_cache[$cur_task]=$(__mix_list_task_options $cur_task)
